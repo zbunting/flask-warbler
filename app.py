@@ -3,10 +3,10 @@ from dotenv import load_dotenv
 
 from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, PendingRollbackError
 
 from forms import UserAddForm, LoginForm, MessageForm, CSRFForm, EditProfile
-from models import db, dbx, User, Message, Follow
+from models import db, dbx, User, Message
 from werkzeug.exceptions import Unauthorized
 
 load_dotenv()
@@ -36,10 +36,16 @@ def add_user_to_g():
 
     if CURR_USER_KEY in session:
         g.user = db.session.get(User, session[CURR_USER_KEY])
-        g.csrf_form = CSRFForm()
 
     else:
         g.user = None
+
+
+@app.before_request
+def add_csrf_form_to_g():
+    """Add a CSRF form to g."""
+
+    g.csrf_form = CSRFForm()
 
 
 def do_login(user):
@@ -100,6 +106,7 @@ def login():
     """Handle user login and redirect to homepage on success."""
 
     if g.user:
+        flash('Already logged in!')
         return redirect(f"/users/{g.user.id}")
 
     form = LoginForm()
@@ -205,7 +212,7 @@ def start_following(follow_id):
     Redirect to following page for the current for the current user.
     """
 
-    if not g.user:
+    if not g.user or not g.csrf_form.validate_on_submit():
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
@@ -224,7 +231,7 @@ def stop_following(follow_id):
     Redirect to following page for the current for the current user.
     """
 
-    if not g.user:
+    if not g.user or not g.csrf_form.validate_on_submit():
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
@@ -237,26 +244,32 @@ def stop_following(follow_id):
 
 
 @app.route('/users/profile', methods=["GET", "POST"])
-def profile():
+def edit_profile():
     """Update profile for current user."""
 
     if not g.user:
-        raise Unauthorized()
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
 
     form = EditProfile(obj=g.user)
 
     if form.validate_on_submit():
 
         if User.authenticate(g.user.username, form.password.data):
-            g.user.update_user(
-                form.username.data,
-                form.email.data,
-                form.image_url.data or None,
-                form.header_image_url.data or None,
-                form.bio.data
-            )
 
-            db.session.commit()
+            try:
+                g.user.update_user(
+                    form.username.data,
+                    form.email.data,
+                    form.image_url.data or None,
+                    form.header_image_url.data or None,
+                    form.bio.data
+                )
+                db.session.commit()
+
+            except IntegrityError:
+                flash('Username already taken!')
+                return render_template("/users/edit.jinja", form=form)
 
             return redirect(f"/users/{g.user.id}")
 
@@ -272,7 +285,7 @@ def delete_user():
     Redirect to signup page.
     """
 
-    if not g.user:
+    if not g.user or not g.csrf_form.validate_on_submit():
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
@@ -330,11 +343,16 @@ def delete_message(message_id):
     Redirect to user page on success.
     """
 
-    if not g.user:
+    if not g.user or g.csrf_form.validate_on_submit():
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     msg = db.get_or_404(Message, message_id)
+
+    if msg.user_id != g.user.id:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
     db.session.delete(msg)
     db.session.commit()
 

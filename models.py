@@ -2,6 +2,7 @@
 
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.exc import IntegrityError
 
 bcrypt = Bcrypt()
 
@@ -108,6 +109,12 @@ class User(db.Model):
 
     messages = db.relationship(
         "Message",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    liked_messages = db.relationship(
+        "LikedMessage",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -263,4 +270,43 @@ class Message(db.Model):
     user = db.relationship(
         "User",
         back_populates="messages",
+    )
+
+    liked_message = db.relationship(
+        "LikedMessage",
+        back_populates="messages"
+    )
+
+
+class LikedMessage(db.Model):
+    """An individual liked message ("warble")."""
+
+    __tablename__ = 'liked_messages'
+
+    id = db.mapped_column(
+        db.Integer,
+        db.Identity(),
+        primary_key=True,
+    )
+
+    user_id = db.mapped_column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+
+    message_id = db.mapped_column(
+        db.Integer,
+        db.ForeignKey('messages.id', ondelete='CASCADE'),
+        nullable=False,
+    )
+
+    user = db.relationship(
+        "User",
+        back_populates="liked_messages",
+    )
+
+    message = db.relationship(
+        "Message",
+        back_populates="liked_messages",
     )

@@ -548,3 +548,8 @@ p.card-bio {
 .message-404 input {
   flex: 1;
 }
+
+.like-btn {
+  border: none;
+  background-color: none;
+}
