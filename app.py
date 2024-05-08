@@ -5,8 +5,9 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
-from models import db, dbx, User, Message
+from forms import UserAddForm, LoginForm, MessageForm, CSRFForm, EditProfile
+from models import db, dbx, User, Message, Follow
+from werkzeug.exceptions import Unauthorized
 
 load_dotenv()
 
@@ -19,6 +20,7 @@ app.config['SQLALCHEMY_ECHO'] = False
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
 app.config['SQLALCHEMY_RECORD_QUERIES'] = True
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 toolbar = DebugToolbarExtension(app)
 
 db.init_app(app)
@@ -34,6 +36,7 @@ def add_user_to_g():
 
     if CURR_USER_KEY in session:
         g.user = db.session.get(User, session[CURR_USER_KEY])
+        g.csrf_form = CSRFForm()
 
     else:
         g.user = None
@@ -64,7 +67,9 @@ def signup():
     and re-present form.
     """
 
-    do_logout()
+    if g.user:
+        flash('Cannot sign up while logged in')
+        return redirect(f"/users/{g.user.id}")
 
     form = UserAddForm()
 
@@ -94,6 +99,9 @@ def signup():
 def login():
     """Handle user login and redirect to homepage on success."""
 
+    if g.user:
+        return redirect(f"/users/{g.user.id}")
+
     form = LoginForm()
 
     if form.validate_on_submit():
@@ -118,8 +126,12 @@ def logout():
 
     form = g.csrf_form
 
-    # IMPLEMENT THIS AND FIX BUG
-    # DO NOT CHANGE METHOD ON ROUTE
+    if form.validate_on_submit():
+        do_logout()
+        flash('Logged out!')
+        return redirect('/login')
+
+    raise Unauthorized()
 
 
 ##############################################################################
@@ -228,7 +240,29 @@ def stop_following(follow_id):
 def profile():
     """Update profile for current user."""
 
-    # IMPLEMENT THIS
+    if not g.user:
+        raise Unauthorized()
+
+    form = EditProfile(obj=g.user)
+
+    if form.validate_on_submit():
+
+        if User.authenticate(g.user.username, form.password.data):
+            g.user.update_user(
+                form.username.data,
+                form.email.data,
+                form.image_url.data or None,
+                form.header_image_url.data or None,
+                form.bio.data
+            )
+
+            db.session.commit()
+
+            return redirect(f"/users/{g.user.id}")
+
+        flash('Incorrect password entered!')
+
+    return render_template("/users/edit.jinja", form=form)
 
 
 @app.post('/users/delete')
@@ -320,8 +354,13 @@ def homepage():
     """
 
     if g.user:
+        followed_users = [followed.id for followed in g.user.following]
         q = (
             db.select(Message)
+            .where(
+                (Message.user_id == g.user.id) |
+                (Message.user_id.in_(followed_users))
+            )
             .order_by(Message.timestamp.desc())
             .limit(100)
         )
