@@ -191,11 +191,11 @@ class User(db.Model):
         """Stop following another user."""
 
         q = (db
-            .delete(Follow)
-            .filter_by(
-                user_being_followed_id=other_user.id,
-                user_following_id=self.id)
-        )
+             .delete(Follow)
+             .filter_by(
+                 user_being_followed_id=other_user.id,
+                 user_following_id=self.id)
+             )
         dbx(q)
 
     def is_followed_by(self, other_user):
@@ -211,6 +211,25 @@ class User(db.Model):
         found_user_list = [
             user for user in self.following if user == other_user]
         return len(found_user_list) == 1
+
+    def update_user(
+            self,
+            username,
+            email,
+            image_url,
+            header_image_url,
+            bio
+    ):
+        """
+        Update this user's username, email, image_url, header_image_url and bio
+        If no image_url or header_image_url are passed, use the default
+        """
+
+        self.username = username
+        self.email = email
+        self.image_url = image_url or DEFAULT_IMAGE_URL
+        self.header_image_url = header_image_url or DEFAULT_HEADER_IMAGE_URL
+        self.bio = bio
 
 
 class Message(db.Model):
