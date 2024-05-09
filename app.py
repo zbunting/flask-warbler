@@ -91,6 +91,7 @@ def signup():
             db.session.commit()
 
         except IntegrityError:
+            db.session.rollback()
             flash("Username already taken", 'danger')
             return render_template('users/signup.jinja', form=form)
 
@@ -206,6 +207,19 @@ def show_followers(user_id):
     return render_template('users/followers.jinja', user=user)
 
 
+@app.get('/users/<int:user_id>/likes')
+def show_liked_messages(user_id):
+    """Show all user's liked messages"""
+
+    if (not g.user or g.user.id != user_id):
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = db.get_or_404(User, user_id)
+
+    return render_template('/users/likes.jinja', user=user)
+
+
 @app.post('/users/follow/<int:follow_id>')
 def start_following(follow_id):
     """Add a follow for the currently-logged-in user.
@@ -244,6 +258,46 @@ def stop_following(follow_id):
     return redirect(f"/users/{g.user.id}/following")
 
 
+@app.post('/users/<int:user_id>/likes/<int:message_id>')
+def like_message(user_id, message_id):
+    """Like a message"""
+
+    if (
+        not g.user or
+        not g.csrf_form.validate_on_submit() or
+        g.user.id != user_id
+    ):
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    msg = db.get_or_404(Message, message_id)
+
+    if msg.user_id == g.user.id:
+        flash("Cannot like your own message!")
+        return redirect("/")
+
+    q = (
+        db.select(LikedMessage)
+        .where(
+            (LikedMessage.message_id == message_id) &
+            (LikedMessage.user_id == user_id)
+        )
+    )
+
+    likedmsg = dbx(q).scalar_one_or_none()
+
+    if likedmsg:
+        db.session.delete(likedmsg)
+
+    else:
+        likedmsg = LikedMessage(user_id=user_id, message_id=msg.id)
+        db.session.add(likedmsg)
+
+    db.session.commit()
+
+    return redirect(f"/messages/{message_id}")
+
+
 @app.route('/users/profile', methods=["GET", "POST"])
 def edit_profile():
     """Update profile for current user."""
@@ -277,7 +331,7 @@ def edit_profile():
 
         flash('Incorrect password entered!')
 
-    return render_template("/users/edit.jinja", form=form)
+    return render_template("/users/edit.jinja", form=form, user_id=g.user.id)
 
 
 @app.post('/users/delete')
@@ -345,7 +399,7 @@ def delete_message(message_id):
     Redirect to user page on success.
     """
 
-    if not g.user or g.csrf_form.validate_on_submit():
+    if not g.user or not g.csrf_form.validate_on_submit():
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
@@ -359,58 +413,6 @@ def delete_message(message_id):
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}")
-
-
-@app.post('/users/<int:user_id>/likedmessages/<int:message_id>')
-def like_message(user_id, message_id):
-    """Like a message"""
-
-    if (
-        not g.user or
-        not g.csrf_form.validate_on_submit() or
-        g.user.id != user_id
-    ):
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    msg = db.get_or_404(Message, message_id)
-
-    if msg.user_id == g.user.id:
-        flash("Cannot like your own messages!")
-        return redirect("/")
-
-    q = (
-        db.select(LikedMessage)
-        .where(
-            (LikedMessage.message_id == message_id) &
-            (LikedMessage.user_id == user_id)
-        )
-    )
-    likedmsg = dbx(q).scalar_one_or_none()
-
-    if likedmsg:
-        db.session.delete(likedmsg)
-
-    else:
-        likedmsg = LikedMessage(user_id=user_id, message_id=msg.id)
-        db.session.add(likedmsg)
-
-    db.session.commit()
-
-    return redirect(f"/messages/{message_id}")
-
-
-@app.get('/users/<int:user_id>/likedmessages')
-def show_liked_messages(user_id):
-    """Show all user's liked messages"""
-
-    if (not g.user or g.user.id != user_id):
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    liked_messages = g.user.liked_msgs
-
-    return render_template('home.jinja', messages=liked_messages)
 
 
 ##############################################################################

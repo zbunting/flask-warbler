@@ -59,7 +59,7 @@
             </div>
             <div class="messages-like">
               <form
-              action="/users/{{ g.user.id }}/likedmessages/{{ msg.id }}"
+              action="/users/{{ g.user.id }}/likes/{{ msg.id }}"
               method="POST"
               >
                 {{ g.csrf_form.hidden_tag() }}
