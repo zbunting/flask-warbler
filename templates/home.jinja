@@ -61,7 +61,10 @@
               <form action="/users" method="POST">
                 {{ g.csrf_form.hidden_tag() }}
                 <button class="btn" type="submit">
+                {# {% if  %} #}
                   <i class="bi bi-star"></i>
+                  {# {% if %}
+                  {% endif %} #}
                 </button>
               </form>
             </div>

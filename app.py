@@ -3,10 +3,10 @@ from dotenv import load_dotenv
 
 from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
-from sqlalchemy.exc import IntegrityError, PendingRollbackError
+from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, CSRFForm, EditProfile
-from models import db, dbx, User, Message
+from models import db, dbx, User, Message, LikedMessage
 from werkzeug.exceptions import Unauthorized
 
 load_dotenv()
@@ -268,6 +268,7 @@ def edit_profile():
                 db.session.commit()
 
             except IntegrityError:
+                db.session.rollback()
                 flash('Username already taken!')
                 return render_template("/users/edit.jinja", form=form)
 
@@ -357,6 +358,37 @@ def delete_message(message_id):
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}")
+
+
+@app.post('/users/<int:user_id>/likedmessages/<int:message_id>')
+def like_message(user_id, message_id):
+    """Like a message"""
+
+    if not g.user or g.csrf_form.validate_on_submit() or g.user.id != user_id:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    msg = db.get_or_404(Message, message_id)
+
+    q = (
+        db.select(LikedMessage)
+        .where(
+            (LikedMessage.message_id == msg.id) &
+            (LikedMessage.user_id == msg.id)
+        )
+    )
+    likedmsg = dbx(q).scalar_one_or_none()
+
+    if likedmsg:
+        db.session.delete(likedmsg)
+
+    else:
+        likedmsg = LikedMessage(user_id=user_id, message_id=msg.id)
+        db.session.add(likedmsg)
+
+    db.session.commit()
+
+    return redirect(f"/messages/{message_id}")
 
 
 ##############################################################################

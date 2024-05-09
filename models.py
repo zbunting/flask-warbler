@@ -134,6 +134,10 @@ class User(db.Model):
     )
 
     @property
+    def liked_msgs(self):
+        return [liked_msg.message for liked_msg in self.liked_messages]
+
+    @property
     def following(self):
         return [follow.following_user for follow in self.following_users]
 
@@ -272,9 +276,9 @@ class Message(db.Model):
         back_populates="messages",
     )
 
-    liked_message = db.relationship(
+    liked_messages = db.relationship(
         "LikedMessage",
-        back_populates="messages"
+        back_populates="message"
     )
 
 
