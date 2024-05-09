@@ -48,6 +48,21 @@
           <span class="text-muted">
               {{ message.timestamp.strftime('%d %B %Y') }}
             </span>
+            <div class="messages-like">
+              <form
+              action="/users/{{ g.user.id }}/likedmessages/{{ message.id }}"
+              method="POST"
+              >
+                {{ g.csrf_form.hidden_tag() }}
+                <button class="btn" type="submit">
+                {% if message.is_liked_by_user(g.user.id) %}
+                  <i class="bi bi-star-fill"></i>
+                {% else %}
+                  <i class="bi bi-star"></i>
+                {% endif %}
+                </button>
+              </form>
+            </div>
         </div>
       </li>
     </ul>

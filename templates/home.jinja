@@ -58,13 +58,17 @@
               <p>{{ msg.text }}</p>
             </div>
             <div class="messages-like">
-              <form action="/users" method="POST">
+              <form
+              action="/users/{{ g.user.id }}/likedmessages/{{ msg.id }}"
+              method="POST"
+              >
                 {{ g.csrf_form.hidden_tag() }}
                 <button class="btn" type="submit">
-                {# {% if  %} #}
+                {% if msg.is_liked_by_user(g.user.id) %}
+                  <i class="bi bi-star-fill"></i>
+                {% else %}
                   <i class="bi bi-star"></i>
-                  {# {% if %}
-                  {% endif %} #}
+                {% endif %}
                 </button>
               </form>
             </div>

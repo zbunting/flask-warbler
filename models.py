@@ -138,6 +138,10 @@ class User(db.Model):
         return [liked_msg.message for liked_msg in self.liked_messages]
 
     @property
+    def num_likes(self):
+        return len(self.liked_msgs)
+
+    @property
     def following(self):
         return [follow.following_user for follow in self.following_users]
 
@@ -281,11 +285,28 @@ class Message(db.Model):
         back_populates="message"
     )
 
+    @property
+    def users_liked(self):
+        """List of all the user ids that like this message"""
+
+        return [
+            liked_message.user_id for liked_message in self.liked_messages
+        ]
+
+    def is_liked_by_user(self, user_id):
+        """Returns true if this messages is liked by user"""
+
+        return user_id in self.users_liked
+
 
 class LikedMessage(db.Model):
     """An individual liked message ("warble")."""
 
     __tablename__ = 'liked_messages'
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "message_id"),
+    )
 
     id = db.mapped_column(
         db.Integer,
@@ -296,13 +317,13 @@ class LikedMessage(db.Model):
     user_id = db.mapped_column(
         db.Integer,
         db.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False,
+        nullable=False
     )
 
     message_id = db.mapped_column(
         db.Integer,
         db.ForeignKey('messages.id', ondelete='CASCADE'),
-        nullable=False,
+        nullable=False
     )
 
     user = db.relationship(

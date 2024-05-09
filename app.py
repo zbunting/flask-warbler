@@ -20,6 +20,7 @@ app.config['SQLALCHEMY_ECHO'] = False
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
 app.config['SQLALCHEMY_RECORD_QUERIES'] = True
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
+
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 toolbar = DebugToolbarExtension(app)
 
@@ -364,17 +365,25 @@ def delete_message(message_id):
 def like_message(user_id, message_id):
     """Like a message"""
 
-    if not g.user or g.csrf_form.validate_on_submit() or g.user.id != user_id:
+    if (
+        not g.user or
+        not g.csrf_form.validate_on_submit() or
+        g.user.id != user_id
+    ):
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     msg = db.get_or_404(Message, message_id)
 
+    if msg.user_id == g.user.id:
+        flash("Cannot like your own messages!")
+        return redirect("/")
+
     q = (
         db.select(LikedMessage)
         .where(
-            (LikedMessage.message_id == msg.id) &
-            (LikedMessage.user_id == msg.id)
+            (LikedMessage.message_id == message_id) &
+            (LikedMessage.user_id == user_id)
         )
     )
     likedmsg = dbx(q).scalar_one_or_none()
@@ -389,6 +398,19 @@ def like_message(user_id, message_id):
     db.session.commit()
 
     return redirect(f"/messages/{message_id}")
+
+
+@app.get('/users/<int:user_id>/likedmessages')
+def show_liked_messages(user_id):
+    """Show all user's liked messages"""
+
+    if (not g.user or g.user.id != user_id):
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    liked_messages = g.user.liked_msgs
+
+    return render_template('home.jinja', messages=liked_messages)
 
 
 ##############################################################################
