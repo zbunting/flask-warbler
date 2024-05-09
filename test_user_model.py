@@ -90,14 +90,14 @@ class UserModelTestCase(TestCase):
         self.assertEqual(user_query.email, "test@test.com")
 
     # def test_invalid_user_signup(self):
-        # user = User.signup(
-        #     "u1",
-        #     "test@test.com",
-        #     "tester"
-        # )
-        # db.session.commit()
-
-        # user_query = db.session.get(User, user.id)
+    #     self.assertRaises(
+    #         User.signup(
+    #             "u1",
+    #             "test@test.com",
+    #             "tester"
+    #         ),
+    #         IntegrityError
+    #     )
 
     def test_user_authentication(self):
         self.assertTrue(User.authenticate("u1", "password"))

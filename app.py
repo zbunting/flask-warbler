@@ -6,7 +6,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, CSRFForm, EditProfile
-from models import db, dbx, User, Message, LikedMessage
+from models import db, dbx, User, Message, Like
 from werkzeug.exceptions import Unauthorized
 
 load_dotenv()
@@ -182,6 +182,9 @@ def show_user(user_id):
 
     return render_template('users/show.jinja', user=user)
 
+##############################################################################
+# User routes related to following:
+
 
 @app.get('/users/<int:user_id>/following')
 def show_following(user_id):
@@ -205,19 +208,6 @@ def show_followers(user_id):
 
     user = db.get_or_404(User, user_id)
     return render_template('users/followers.jinja', user=user)
-
-
-@app.get('/users/<int:user_id>/likes')
-def show_liked_messages(user_id):
-    """Show all user's liked messages"""
-
-    if (not g.user or g.user.id != user_id):
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    user = db.get_or_404(User, user_id)
-
-    return render_template('/users/likes.jinja', user=user)
 
 
 @app.post('/users/follow/<int:follow_id>')
@@ -258,14 +248,32 @@ def stop_following(follow_id):
     return redirect(f"/users/{g.user.id}/following")
 
 
-@app.post('/users/<int:user_id>/likes/<int:message_id>')
-def like_message(user_id, message_id):
-    """Like a message"""
+##############################################################################
+# User routes related to likes:
+
+
+@app.get('/users/<int:user_id>/likes')
+def show_liked_messages(user_id):
+    """
+    Show all user's liked messages
+    Only `user_id` can see their likes
+    """
+
+    if (not g.user or g.user.id != user_id):
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    return render_template('/users/likes.jinja', user=g.user)
+
+
+@app.post('/users/<int:user_liking_msg_id>/likes/<int:message_id>')
+def like_unlike_message(user_liking_msg_id, message_id):
+    """Like/unlike a message for `user_liking_msg_id`"""
 
     if (
         not g.user or
         not g.csrf_form.validate_on_submit() or
-        g.user.id != user_id
+        g.user.id != user_liking_msg_id
     ):
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -276,25 +284,12 @@ def like_message(user_id, message_id):
         flash("Cannot like your own message!")
         return redirect("/")
 
-    q = (
-        db.select(LikedMessage)
-        .where(
-            (LikedMessage.message_id == message_id) &
-            (LikedMessage.user_id == user_id)
-        )
-    )
-
-    likedmsg = dbx(q).scalar_one_or_none()
-
-    if likedmsg:
-        db.session.delete(likedmsg)
-
-    else:
-        likedmsg = LikedMessage(user_id=user_id, message_id=msg.id)
-        db.session.add(likedmsg)
+    g.user.like_unlike_msg(msg)
 
     db.session.commit()
 
+    # TODO: research how to keep the user on the same page
+    # on forms there are hidden tags, can pass the URL there
     return redirect(f"/messages/{message_id}")
 
 

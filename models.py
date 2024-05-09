@@ -114,7 +114,7 @@ class User(db.Model):
     )
 
     liked_messages = db.relationship(
-        "LikedMessage",
+        "Like",
         back_populates="user",
         cascade="all, delete-orphan",
     )
@@ -246,6 +246,29 @@ class User(db.Model):
         self.header_image_url = header_image_url or DEFAULT_HEADER_IMAGE_URL
         self.bio = bio
 
+    def like_unlike_msg(self, msg):
+        """
+        Checks whether a user has liked a message and then likes/unlikes the
+        message
+        """
+
+        q = (
+            db.select(Like)
+            .where(
+                (Like.message_id == msg.id) &
+                (Like.user_id == self.id)
+            )
+        )
+
+        liked_msg = dbx(q).scalar_one_or_none()
+
+        if liked_msg:
+            db.session.delete(liked_msg)
+
+        else:
+            liked_msg = Like(user_id=self.id, message_id=msg.id)
+            db.session.add(liked_msg)
+
 
 class Message(db.Model):
     """An individual message ("warble")."""
@@ -281,7 +304,7 @@ class Message(db.Model):
     )
 
     liked_messages = db.relationship(
-        "LikedMessage",
+        "Like",
         back_populates="message"
     )
 
@@ -299,31 +322,36 @@ class Message(db.Model):
         return user_id in self.users_liked
 
 
-class LikedMessage(db.Model):
+class Like(db.Model):
     """An individual liked message ("warble")."""
 
     __tablename__ = 'liked_messages'
 
+    # TODO: can make user_id and message_id primary keys together, since we
+    # already have a composite unique constraint
     __table_args__ = (
         db.UniqueConstraint("user_id", "message_id"),
     )
 
-    id = db.mapped_column(
-        db.Integer,
-        db.Identity(),
-        primary_key=True,
-    )
+    # FIXME: don't need this
+    # id = db.mapped_column(
+    #     db.Integer,
+    #     db.Identity(),
+    #     primary_key=True,
+    # )
 
     user_id = db.mapped_column(
         db.Integer,
         db.ForeignKey('users.id', ondelete='CASCADE'),
-        nullable=False
+        nullable=False,
+        primary_key=True
     )
 
     message_id = db.mapped_column(
         db.Integer,
         db.ForeignKey('messages.id', ondelete='CASCADE'),
-        nullable=False
+        nullable=False,
+        primary_key=True
     )
 
     user = db.relationship(
