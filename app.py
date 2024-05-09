@@ -248,51 +248,6 @@ def stop_following(follow_id):
     return redirect(f"/users/{g.user.id}/following")
 
 
-##############################################################################
-# User routes related to likes:
-
-
-@app.get('/users/<int:user_id>/likes')
-def show_liked_messages(user_id):
-    """
-    Show all user's liked messages
-    Only `user_id` can see their likes
-    """
-
-    if (not g.user or g.user.id != user_id):
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    return render_template('/users/likes.jinja', user=g.user)
-
-
-@app.post('/users/<int:user_liking_msg_id>/likes/<int:message_id>')
-def like_unlike_message(user_liking_msg_id, message_id):
-    """Like/unlike a message for `user_liking_msg_id`"""
-
-    if (
-        not g.user or
-        not g.csrf_form.validate_on_submit() or
-        g.user.id != user_liking_msg_id
-    ):
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    msg = db.get_or_404(Message, message_id)
-
-    if msg.user_id == g.user.id:
-        flash("Cannot like your own message!")
-        return redirect("/")
-
-    g.user.like_unlike_msg(msg)
-
-    db.session.commit()
-
-    # TODO: research how to keep the user on the same page
-    # on forms there are hidden tags, can pass the URL there
-    return redirect(f"/messages/{message_id}")
-
-
 @app.route('/users/profile', methods=["GET", "POST"])
 def edit_profile():
     """Update profile for current user."""
@@ -346,6 +301,51 @@ def delete_user():
     db.session.commit()
 
     return redirect("/signup")
+
+
+##############################################################################
+# User routes related to likes:
+
+
+@app.get('/users/<int:user_id>/likes')
+def show_liked_messages(user_id):
+    """
+    Show all user's liked messages
+    Only `user_id` can see their likes
+    """
+
+    if (not g.user or g.user.id != user_id):
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    return render_template('/users/likes.jinja', user=g.user)
+
+
+@app.post('/users/<int:user_liking_msg_id>/likes/<int:message_id>')
+def like_unlike_message(user_liking_msg_id, message_id):
+    """Like/unlike a message for `user_liking_msg_id`"""
+
+    if (
+        not g.user or
+        not g.csrf_form.validate_on_submit() or
+        g.user.id != user_liking_msg_id
+    ):
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    msg = db.get_or_404(Message, message_id)
+
+    if msg.user_id == g.user.id:
+        flash("Cannot like your own message!")
+        return redirect("/")
+
+    g.user.like_unlike_msg(msg)
+
+    db.session.commit()
+
+    # TODO: research how to keep the user on the same page
+    # on forms there are hidden tags, can pass the URL there
+    return redirect(f"/messages/{message_id}")
 
 
 ##############################################################################
