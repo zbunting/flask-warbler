@@ -327,18 +327,9 @@ class Like(db.Model):
 
     __tablename__ = 'liked_messages'
 
-    # TODO: can make user_id and message_id primary keys together, since we
-    # already have a composite unique constraint
     __table_args__ = (
         db.UniqueConstraint("user_id", "message_id"),
     )
-
-    # FIXME: don't need this
-    # id = db.mapped_column(
-    #     db.Integer,
-    #     db.Identity(),
-    #     primary_key=True,
-    # )
 
     user_id = db.mapped_column(
         db.Integer,
