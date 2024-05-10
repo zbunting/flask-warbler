@@ -134,6 +134,7 @@ class UserViewTestCase(UserBaseViewTestCase):
 
             self.assertIsNone(u1)
 
+    # TODO: break this apart into multiple functions testing each part
     def test_edit_profile(self):
         with app.test_client() as c:
             with c.session_transaction() as sess:
@@ -155,6 +156,9 @@ class UserViewTestCase(UserBaseViewTestCase):
             u1 = db.session.get(User, self.u1_id)
 
             # How to check all properties at once?
+            # don't nibble
+            # TODO: compare the dictionaries
+            # assert u1.__dict__ ?
             self.assertIn("userOne", html)
             self.assertEqual("userOne", u1.username)
             self.assertEqual("u1@email.com", u1.email)
@@ -222,6 +226,7 @@ class UserViewTestCase(UserBaseViewTestCase):
 
             self.assertIn("Incorrect password entered!", html)
 
+    # TODO: start by breaking apart by route
     def test_no_logged_in_user(self):
         with app.test_client() as c:
             resp = c.get(

@@ -50,6 +50,9 @@ class MessageBaseViewTestCase(TestCase):
         self.m1_id = m1.id
         self.m2_id = m2.id
 
+    # TODO: organize your test cases
+    # can create multiple subclasses
+
 
 class MessageViewTestCase(MessageBaseViewTestCase):
     def test_add_message(self):
@@ -87,6 +90,10 @@ class MessageViewTestCase(MessageBaseViewTestCase):
 
             self.assertNotIn("Test Message", html)
 
+    # TODO: add tests to follow the redirect
+    # can check for the correct redirect
+    # integration tests should look at all the connections
+    # not just that a particular state changed
     def test_delete_other_user_message(self):
         with app.test_client() as c:
             with c.session_transaction() as sess:
@@ -104,10 +111,14 @@ class MessageViewTestCase(MessageBaseViewTestCase):
             msg = db.session.get(Message, self.m2_id)
             self.assertEqual("Other Message", msg.text)
 
+    # TODO: test the redirect
     def test_like_message(self):
         with app.test_client() as c:
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.u1_id
+
+            msg = db.session.get(Message, self.m2_id)
+            self.assertFalse(msg.is_liked_by_user(self.u1_id))
 
             c.post(f"/messages/{self.m2_id}/like",
                    data={
@@ -136,3 +147,5 @@ class MessageViewTestCase(MessageBaseViewTestCase):
             html = resp.get_data(as_text=True)
 
             self.assertIn("New to Warbler?", html)
+
+    # TODO: test for and anticipate all the possible outcomes of each route

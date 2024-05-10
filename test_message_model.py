@@ -65,6 +65,8 @@ class UserModelTestCase(TestCase):
 
         self.assertEqual(len(u1.messages), 1)
 
+    # TODO: create and delete message is all from SQL Alchemy, no need to test
+    # test the things that you change/create, not what SQL Alchemy does
     def test_create_message(self):
         u1 = db.session.get(User, self.u1_id)
         self.assertEqual(len(u1.messages), 1)

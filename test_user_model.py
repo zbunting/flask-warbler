@@ -52,6 +52,8 @@ class UserModelTestCase(TestCase):
     def test_authenticate(self):
         u1 = db.session.get(User, self.u1_id)
 
+    # TODO: separate unit tests for working vs failing
+    # can group together the failed username and password
         self.assertEqual(User.authenticate("u1", "password"), u1)
         self.assertFalse(User.authenticate("u1", "wrong_password"))
         self.assertFalse(User.authenticate("user", "password"))
@@ -97,6 +99,8 @@ class UserModelTestCase(TestCase):
         user_query = db.session.get(User, user.id)
         self.assertEqual(user_query.username, "testuser")
         self.assertEqual(user_query.email, "test@test.com")
+
+        # TODO: check to make sure you are getting back the user model
 
     def test_invalid_user_signup(self):
         with self.assertRaises(IntegrityError):
