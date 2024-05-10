@@ -6,7 +6,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import UserAddForm, LoginForm, MessageForm, CSRFForm, EditProfile
-from models import db, dbx, User, Message, Like
+from models import db, dbx, User, Message
 from werkzeug.exceptions import Unauthorized
 
 load_dotenv()
@@ -47,6 +47,13 @@ def add_csrf_form_to_g():
     """Add a CSRF form to g."""
 
     g.csrf_form = CSRFForm()
+
+
+@app.before_request
+def add_request_url_to_g():
+    """Add the url the request came from to g."""
+
+    g.request_url = request.url
 
 
 def do_login(user):
@@ -182,8 +189,19 @@ def show_user(user_id):
 
     return render_template('users/show.jinja', user=user)
 
-##############################################################################
-# User routes related to following:
+
+@app.get('/users/<int:user_id>/likes')
+def show_liked_messages(user_id):
+    """
+    Show all user's liked messages
+    Only `user_id` can see their likes
+    """
+
+    if (not g.user or g.user.id != user_id):
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    return render_template('/users/likes.jinja', user=g.user)
 
 
 @app.get('/users/<int:user_id>/following')
@@ -304,51 +322,6 @@ def delete_user():
 
 
 ##############################################################################
-# User routes related to likes:
-
-
-@app.get('/users/<int:user_id>/likes')
-def show_liked_messages(user_id):
-    """
-    Show all user's liked messages
-    Only `user_id` can see their likes
-    """
-
-    if (not g.user or g.user.id != user_id):
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    return render_template('/users/likes.jinja', user=g.user)
-
-
-@app.post('/users/<int:user_liking_msg_id>/likes/<int:message_id>')
-def like_unlike_message(user_liking_msg_id, message_id):
-    """Like/unlike a message for `user_liking_msg_id`"""
-
-    if (
-        not g.user or
-        not g.csrf_form.validate_on_submit() or
-        g.user.id != user_liking_msg_id
-    ):
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    msg = db.get_or_404(Message, message_id)
-
-    if msg.user_id == g.user.id:
-        flash("Cannot like your own message!")
-        return redirect("/")
-
-    g.user.like_unlike_msg(msg)
-
-    db.session.commit()
-
-    # TODO: research how to keep the user on the same page
-    # on forms there are hidden tags, can pass the URL there
-    return redirect(f"/messages/{message_id}")
-
-
-##############################################################################
 # Messages routes:
 
 @app.route('/messages/new', methods=["GET", "POST"])
@@ -384,6 +357,29 @@ def show_message(message_id):
 
     msg = db.get_or_404(Message, message_id)
     return render_template('messages/show.jinja', message=msg)
+
+
+@app.post('/messages/<int:message_id>/like')
+def like_unlike_message(message_id):
+    """Like/unlike message with `message_id` for the logged in user"""
+
+    if (not g.user or not g.csrf_form.validate_on_submit()):
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    msg = db.get_or_404(Message, message_id)
+
+    if msg.user_id == g.user.id:
+        flash("Cannot like your own message!")
+        return redirect("/")
+
+    g.user.like_unlike_msg(msg)
+
+    db.session.commit()
+
+    # NOTE request.referrer relies on the app knowing your broswer history
+    # unsupported in some cases
+    return redirect(f"{request.form['request_url']}")
 
 
 @app.post('/messages/<int:message_id>/delete')

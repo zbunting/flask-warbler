@@ -6,6 +6,8 @@ from unittest import TestCase
 from app import app
 from models import db, dbx, User, Follow
 
+from sqlalchemy.exc import IntegrityError
+
 # To run the tests, you must provide a "test database", since these tests
 # delete & recreate the tables & data. In your shell:
 #
@@ -89,15 +91,14 @@ class UserModelTestCase(TestCase):
         self.assertEqual(user_query.username, "testuser")
         self.assertEqual(user_query.email, "test@test.com")
 
-    # def test_invalid_user_signup(self):
-    #     self.assertRaises(
-    #         User.signup(
-    #             "u1",
-    #             "test@test.com",
-    #             "tester"
-    #         ),
-    #         IntegrityError
-    #     )
+    def test_invalid_user_signup(self):
+        with self.assertRaises(IntegrityError):
+            User.signup(
+                "u1",
+                "test@test.com",
+                "tester"
+            )
+            db.session.commit()
 
     def test_user_authentication(self):
         self.assertTrue(User.authenticate("u1", "password"))

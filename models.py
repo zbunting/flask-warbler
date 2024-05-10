@@ -113,7 +113,7 @@ class User(db.Model):
         cascade="all, delete-orphan",
     )
 
-    liked_messages = db.relationship(
+    likes = db.relationship(
         "Like",
         back_populates="user",
         cascade="all, delete-orphan",
@@ -135,7 +135,7 @@ class User(db.Model):
 
     @property
     def liked_msgs(self):
-        return [liked_msg.message for liked_msg in self.liked_messages]
+        return [like.message for like in self.likes]
 
     @property
     def num_likes(self):
@@ -303,9 +303,10 @@ class Message(db.Model):
         back_populates="messages",
     )
 
-    liked_messages = db.relationship(
+    likes = db.relationship(
         "Like",
-        back_populates="message"
+        back_populates="message",
+        cascade="all, delete-orphan"
     )
 
     @property
@@ -313,7 +314,7 @@ class Message(db.Model):
         """List of all the user ids that like this message"""
 
         return [
-            liked_message.user_id for liked_message in self.liked_messages
+            like.user_id for like in self.likes
         ]
 
     def is_liked_by_user(self, user_id):
@@ -323,9 +324,9 @@ class Message(db.Model):
 
 
 class Like(db.Model):
-    """An individual liked message ("warble")."""
+    """An individual like."""
 
-    __tablename__ = 'liked_messages'
+    __tablename__ = 'likes'
 
     __table_args__ = (
         db.UniqueConstraint("user_id", "message_id"),
@@ -347,10 +348,10 @@ class Like(db.Model):
 
     user = db.relationship(
         "User",
-        back_populates="liked_messages",
+        back_populates="likes"
     )
 
     message = db.relationship(
         "Message",
-        back_populates="liked_messages",
+        back_populates="likes"
     )
