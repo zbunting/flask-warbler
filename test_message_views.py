@@ -4,7 +4,7 @@ import os
 from unittest import TestCase
 
 from app import app, CURR_USER_KEY
-from models import db, dbx, Message, User, Like
+from models import db, dbx, Message, User
 
 # To run the tests, you must provide a "test database", since these tests
 # delete & recreate the tables & data. In your shell:
@@ -46,6 +46,7 @@ class MessageBaseViewTestCase(TestCase):
         db.session.commit()
 
         self.u1_id = u1.id
+        self.u2_id = u2.id
         self.m1_id = m1.id
         self.m2_id = m2.id
 
@@ -103,20 +104,32 @@ class MessageViewTestCase(MessageBaseViewTestCase):
             msg = db.session.get(Message, self.m2_id)
             self.assertEqual("Other Message", msg.text)
 
+    # def test_like_message(self):
+    #     with app.test_client() as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = self.u1_id
+
+    #         resp = c.post(f"/messages/{self.m1_id}/like")
+
+    #         msg = db.session.get(Message, self.m1_id)
+    #         self.assertTrue(msg.is_liked_by_user(self.u1_id))
+
     def test_no_logged_in_user(self):
         with app.test_client() as c:
 
-            resp = c.post("/messages/new", data={"text": "Hello"})
+            resp = c.post(
+                "/messages/new",
+                data={"text": "Hello"},
+                follow_redirects=True
+            )
             html = resp.get_data(as_text=True)
 
-            self.assertEqual(resp.status_code, 302)
             self.assertIn("New to Warbler?", html)
 
             resp = c.post(
                 f"/messages/{self.m1_id}/delete",
-                data={"text": "Hello"}
+                follow_redirects=True
             )
             html = resp.get_data(as_text=True)
 
-            self.assertEqual(resp.status_code, 302)
             self.assertIn("New to Warbler?", html)
