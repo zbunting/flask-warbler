@@ -104,15 +104,18 @@ class MessageViewTestCase(MessageBaseViewTestCase):
             msg = db.session.get(Message, self.m2_id)
             self.assertEqual("Other Message", msg.text)
 
-    # def test_like_message(self):
-    #     with app.test_client() as c:
-    #         with c.session_transaction() as sess:
-    #             sess[CURR_USER_KEY] = self.u1_id
+    def test_like_message(self):
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.u1_id
 
-    #         resp = c.post(f"/messages/{self.m1_id}/like")
+            c.post(f"/messages/{self.m2_id}/like",
+                   data={
+                       "request_url": "/"
+            })
 
-    #         msg = db.session.get(Message, self.m1_id)
-    #         self.assertTrue(msg.is_liked_by_user(self.u1_id))
+            msg = db.session.get(Message, self.m2_id)
+            self.assertTrue(msg.is_liked_by_user(self.u1_id))
 
     def test_no_logged_in_user(self):
         with app.test_client() as c:

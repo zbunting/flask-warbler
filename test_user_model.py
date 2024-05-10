@@ -49,6 +49,13 @@ class UserModelTestCase(TestCase):
         self.assertEqual(len(u1.messages), 0)
         self.assertEqual(len(u1.followers), 0)
 
+    def test_authenticate(self):
+        u1 = db.session.get(User, self.u1_id)
+
+        self.assertEqual(User.authenticate("u1", "password"), u1)
+        self.assertFalse(User.authenticate("u1", "wrong_password"))
+        self.assertFalse(User.authenticate("user", "password"))
+
     def test_is_following(self):
         u1 = db.session.get(User, self.u1_id)
         u2 = db.session.get(User, self.u2_id)
@@ -103,4 +110,4 @@ class UserModelTestCase(TestCase):
     def test_user_authentication(self):
         self.assertTrue(User.authenticate("u1", "password"))
         self.assertFalse(User.authenticate("u3", "password"))
-        self.assertFalse(User.authenticate("u1", "wrongone"))
+        self.assertFalse(User.authenticate("u1", "wrong_password"))
